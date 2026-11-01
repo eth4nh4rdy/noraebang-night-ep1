@@ -6,5 +6,6 @@
   "lane_spacing": 1.5,
   "song_first_line_time": 2.0,
   "song_line_gap": 3.0,
-  "fight_wrong_halves": 2
+  "fight_wrong_halves": 2,
+  "fight_lighting_effects": false
 }

@@ -5,7 +5,8 @@
 #   Controls at a blank: W/S (or the arrows) and Enter, or a click. X, or a click on
 #   the 눈치 eyes in the HUD, crosses out one wrong option for 1 눈치 (once per blank).
 #   A known loaded card adds a 4th option; the song's lighting modes (normal, flicker,
-#   frantic, and a blank's blackout) come from the song file.
+#   frantic, and a blank's blackout) come from the song file, but only play when
+#   tuning.json's fight_lighting_effects is true (default false: normal light throughout).
 #   After a survival win the boss's line and her taunts play, then the end card.
 #   World starts it (--fight <boss>, or resuming a saved fight); the tests and the
 #   capture mode drive it with step() and pick_*().
@@ -70,6 +71,9 @@ var lost_signals := 0
 var freeze_left := 0.0
 ## What the lights are doing now: "normal", "flicker", "frantic" or "blackout".
 var lighting := "normal"
+## tuning.json's fight_lighting_effects. False: the song's lighting data is ignored and
+## the lights stay normal (as in phase 1) all fight.
+var lighting_effects := false
 ## After a survival win: the lines to play, [{"speaker", "text", "card"}], and the one showing.
 var aftermath: Array[Dictionary] = []
 var aftermath_index := -1
@@ -131,7 +135,9 @@ func _ready() -> void:
 	registry = FightRegistry.new()
 	if clock == null:
 		clock = SilentSongClock.new()
-	logic = FightLogic.new(song, _seed, GameState, TuningScript.fight_config()["wrong_halves"])
+	var cfg: Dictionary = TuningScript.fight_config()
+	lighting_effects = cfg["lighting_effects"]
+	logic = FightLogic.new(song, _seed, GameState, cfg["wrong_halves"])
 	GameState.fight_lost.connect(func(): lost_signals += 1)
 	_build_set()
 	_build_ui()
@@ -701,7 +707,9 @@ func _update_shake(delta: float) -> void:
 ## counter, else the phase of the line being sung; the cards use normal light.
 func _update_lighting(delta: float) -> void:
 	_light_time += delta
-	if _light_override != "":
+	if not lighting_effects:
+		lighting = "normal"
+	elif _light_override != "":
 		lighting = _light_override
 	elif state == State.RESULT or state == State.AFTERMATH or state == State.END or state == State.GAME_OVER:
 		lighting = "normal"
@@ -820,9 +828,9 @@ func _build_ui() -> void:
 		strike.visible = false
 		b.add_child(strike)
 
-	_cross_hint = _label("", 28)
-	_cross_hint.position = Vector2(410, 480)
-	_cross_hint.size = Vector2(1100, 40)
+	_cross_hint = _label("", 26)
+	_cross_hint.position = Vector2(210, 1044)
+	_cross_hint.size = Vector2(1500, 34)
 	_cross_hint.add_theme_color_override("font_color", Color(0.95, 0.9, 0.6))
 	_cross_hint.add_theme_color_override("font_outline_color", Color.BLACK)
 	_cross_hint.add_theme_constant_override("outline_size", 8)

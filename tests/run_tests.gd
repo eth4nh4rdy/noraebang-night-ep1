@@ -2443,7 +2443,14 @@ func _test_optional_conversations() -> void:
 	check(spot.find_children("*", "MeshInstance3D", true, false).is_empty() and spot.find_children("*", "Label3D", true, false).is_empty(), "the talk spot has no marker (no body, no label)")
 	var before := _snapshot(gs)
 	world.player.place(spot.position.x, 0)
-	await _frames(3)
+	# The overlap registers on a physics tick and World's _process (the keycap) runs one
+	# step behind Player's, so a fixed frame count raced them; wait for the overlap, then
+	# give the keycap its frames.
+	var waited := 0
+	while world.player.current_interactable != spot and waited < 60:
+		await _frames(1)
+		waited += 1
+	await _frames(2)
 	check(world.player.current_interactable == spot and world.key_prompt.visible, "standing at the talkers shows the usual Enter keycap")
 	await _press("confirm")
 	check(await _await_box(world), "Enter starts OC-01")
@@ -3774,8 +3781,31 @@ func _test_build_4b() -> void:
 	for b in SongData.flat_blanks(song):
 		lit.append(b.get("light", ""))
 	check(lit == ["", "", "", "", "", "", "", "blackout", "", ""], "only blank 8 has a light override: blackout")
+	check(TuningScript.fight_config()["lighting_effects"] == false, "tuning.json: fight lighting effects are off by default")
+
+	# Switch off (the default): the same song data, but the lights never change.
 	_fresh_fight_state()
 	fight = _make_fight()
+	await _frames(1)
+	check(not fight.lighting_effects, "the fight reads the switch: off")
+	var off_ok := true
+	for n in range(1, 11):
+		fight.play_to_freeze()
+		for i in 40:
+			fight.step(0.05)
+			off_ok = off_ok and fight.lighting == "normal" and is_equal_approx(fight._sun.light_energy, fight.SUN_ENERGY) \
+					and is_equal_approx(fight._env.ambient_light_energy, fight.AMBIENT_ENERGY) and fight._light_overlay.color.a == 0.0
+		fight.pick_right()
+		fight.finish_beat()
+	check(off_ok, "effects off: no flicker, blackout (blank 8) or red phase in the whole fight")
+	check(fight._light_override == "" and fight.state != fight.State.FREEZE, "effects off: the fight still ran through every blank")
+	fight.queue_free()
+	await _frames(2)
+
+	# Switch on: the effects play.
+	_fresh_fight_state()
+	fight = _make_fight()
+	fight.lighting_effects = true
 	await _frames(1)
 	check(fight.lighting == "normal" and is_equal_approx(fight._sun.light_energy, fight.SUN_ENERGY), "the intro is normal light")
 	var modes := {}

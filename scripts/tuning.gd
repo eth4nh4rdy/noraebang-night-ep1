@@ -34,11 +34,12 @@ const DEFAULT_WRONG_HALVES := 2
 
 
 ## Fight tunables: {"first_line_time": float (s), "line_gap": float (s, placeholder
-## spacing between lyric lines), "wrong_halves": int (hearts a wrong answer costs)}.
+## spacing between lyric lines), "wrong_halves": int (hearts a wrong answer costs),
+## "lighting_effects": bool (the bridge flicker, blank 8's blackout and the red frantic phase)}.
 ## tools/build_song.gd bakes the two song values into the song JSON's line times.
 static func fight_config() -> Dictionary:
 	var config := {"first_line_time": DEFAULT_SONG_FIRST_LINE, "line_gap": DEFAULT_SONG_LINE_GAP,
-			"wrong_halves": DEFAULT_WRONG_HALVES}
+			"wrong_halves": DEFAULT_WRONG_HALVES, "lighting_effects": false}
 	var data = JSON.parse_string(FileAccess.get_file_as_string(PATH)) if FileAccess.file_exists(PATH) else null
 	if typeof(data) != TYPE_DICTIONARY:
 		push_error("Tuning: could not read %s, using fight defaults" % PATH)
@@ -54,4 +55,8 @@ static func fight_config() -> Dictionary:
 		config["wrong_halves"] = int(w)
 	else:
 		push_error("Tuning: fight_wrong_halves missing or invalid, using %d" % DEFAULT_WRONG_HALVES)
+	if typeof(data.get("fight_lighting_effects")) == TYPE_BOOL:
+		config["lighting_effects"] = data["fight_lighting_effects"]
+	else:
+		push_error("Tuning: fight_lighting_effects missing or invalid, using false")
 	return config
